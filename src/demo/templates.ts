@@ -448,7 +448,7 @@ spec:
   endpoints:
     - port: http
       path: /metrics
-      interval: 15s
+      interval: 5s
 `;
 }
 
@@ -459,8 +459,9 @@ metadata:
   name: kuberik-demo-app
   annotations:
     rollout.kuberik.io/step-1-ready-timeout: "10m"
-    rollout.kuberik.io/step-1-bake-time: "1m30s"
+    rollout.kuberik.io/step-1-bake-time: "60s"
     rollout.kuberik.io/step-2-ready-timeout: "10m"
+    rollout.kuberik.io/step-2-bake-time: "5s"
 spec:
   workloadRef:
     apiVersion: apps/v1
@@ -632,7 +633,7 @@ spec:
   releasesImagePolicy:
     name: kuberik-demo-app
   versionHistoryLimit: 5
-  bakeTime: 1m
+  bakeTime: 5s
   healthCheckSelector:
     selector:
       matchLabels:
@@ -680,15 +681,15 @@ metadata:
 spec:
   groups:
     - name: kuberik-demo
-      interval: 15s
+      interval: 5s
       rules:
         - alert: HighErrorRate
           expr: |
-            rate(http_errors_total{app="kuberik-demo-app"}[1m])
+            rate(http_errors_total{app="kuberik-demo-app"}[20s])
             /
-            rate(http_requests_total{app="kuberik-demo-app"}[1m])
+            rate(http_requests_total{app="kuberik-demo-app"}[20s])
             > 0.1
-          for: 30s
+          for: 10s
           labels:
             severity: critical
             app: kuberik-demo-app
