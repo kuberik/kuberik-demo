@@ -54,13 +54,6 @@ export async function runDemo(cb: RunnerCallbacks): Promise<void> {
 
     const v2Tag = await propagatingPhase(cb, setupResult);
 
-    // Gate 2: user triggers breaking deploy
-    cb.setStatus('v2 live on staging and prod.\nPress SPACE to deploy broken version →');
-    cb.setWaiting(true);
-    await cb.waitForSpace();
-    cb.setWaiting(false);
-    cb.log('User triggered broken deployment', 'warn');
-
     await breakingPhase(cb, v2Tag, setupResult.imageBase, setupResult.repoDir, setupResult.repoFullName, setupResult.token);
     await recoveredPhase(cb, v2Tag);
   } catch (err) {
@@ -185,15 +178,6 @@ async function propagatingPhase(cb: RunnerCallbacks, { v1Tag, imageBase, repoDir
   const v2Tag = await waitForImagePolicyTag('kuberik-demo-app', 'kuberik-demo-staging', v1Tag);
   cb.log(`v2 detected in staging: ${v2Tag}`, 'info');
   cb.setVersions(v2Tag);
-  cb.setStatus('v2 canary rolling out in staging. Prod still on v1 — waiting for staging bake...');
-
-  await waitForBakeSucceeded();
-  cb.log('Staging bake succeeded — propagating v2 to prod', 'info');
-  cb.setStatus('Staging bake complete. Prod propagating to v2...');
-
-  await waitForKustomization('kuberik-demo-prod');
-  await waitForBakeSucceeded('kuberik-demo-prod');
-  cb.log(`Prod propagated to v2: ${v2Tag}`, 'success');
 
   return v2Tag;
 }
