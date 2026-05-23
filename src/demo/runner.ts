@@ -8,6 +8,7 @@ import {
   applyManifests, createRegistrySecret, createGithubTokenSecret, waitForKustomization,
   waitForImagePolicyTag,
   waitForHealthCheckUnhealthy, waitForHealthCheckHealthy, waitForBakeFailed, waitForBakeSucceeded,
+  waitForHealthCheckUnhealthyNs, deleteHealthCheck, deletePrometheusRule,
   setWantedVersion,
   waitForDemoTrafficReady, DEMO_STAGING_TRAFFIC_URL, DEMO_PROD_TRAFFIC_URL,
 } from '../lib/k8s.js';
@@ -21,6 +22,7 @@ import {
   manifestsServiceMonitor, manifestsKruiseRollout, manifestsKruiseRolloutSimple,
   manifestsHTTPRoute, manifestsHTTPRouteProd,
   clusterManifests, clusterManifestsProd,
+  incidentPrometheusRuleManifest, incidentHealthCheckManifest,
 } from './templates.js';
 import type { PhaseId } from '../state.js';
 
@@ -122,6 +124,7 @@ async function setup(cb: RunnerCallbacks): Promise<SetupResult> {
   const allManifests = [
     clusterManifests(username, v1Commit.tag, repoFullName),
     clusterManifestsProd(username, v1Commit.tag, repoFullName),
+    incidentPrometheusRuleManifest(),
   ].join('\n');
   await applyManifests(allManifests);
   await Promise.all([
@@ -162,7 +165,7 @@ async function setup(cb: RunnerCallbacks): Promise<SetupResult> {
 
 async function propagatingPhase(cb: RunnerCallbacks, { v1Tag, imageBase, repoDir, repoFullName, token }: SetupResult): Promise<string> {
   cb.setPhase('propagating');
-  cb.setStatus('Pushing v2 — watching propagation from staging to prod...');
+  cb.setStatus('Pushing v2...');
 
   const sourceUrl = `https://github.com/${repoFullName}`;
   const v2Commit = await commitAndPush(repoDir, {
@@ -175,9 +178,31 @@ async function propagatingPhase(cb: RunnerCallbacks, { v1Tag, imageBase, repoDir
     m => cb.log(`[v2] ${m}`, 'info'));
   await loadImageIntoKind(v2Ref, m => cb.log(`[v2] ${m}`, 'info'));
 
-  const v2Tag = await waitForImagePolicyTag('kuberik-demo-app', 'kuberik-demo-staging', v1Tag);
-  cb.log(`v2 detected in staging: ${v2Tag}`, 'info');
+  const [v2Tag] = await Promise.all([
+    waitForImagePolicyTag('kuberik-demo-app', 'kuberik-demo-staging', v1Tag),
+    waitForImagePolicyTag('kuberik-demo-app', 'kuberik-demo-prod', v1Tag),
+  ]);
+  cb.log(`v2 detected in staging and prod: ${v2Tag}`, 'info');
   cb.setVersions(v2Tag);
+  cb.setStatus('v2 detected in staging and prod.\nStaging baking — prod waiting for staging approval.\nPress SPACE to simulate prod incident →');
+  cb.setWaiting(true);
+  await cb.waitForSpace();
+  cb.setWaiting(false);
+
+  await applyManifests(incidentHealthCheckManifest());
+  await waitForHealthCheckUnhealthyNs('kuberik-demo-incident', 'kuberik-demo-prod');
+  cb.log('Prod incident active — deployment blocked', 'warn');
+  cb.setStatus('Prod incident active — staging baking v2...');
+
+  await waitForBakeSucceeded();
+  cb.log('Staging approved v2 — prod still blocked by incident', 'warn');
+  cb.setStatus('Staging approved v2.\nProd blocked by active incident.\nPress SPACE to resolve incident →');
+  cb.setWaiting(true);
+  await cb.waitForSpace();
+  cb.setWaiting(false);
+  await deleteHealthCheck('kuberik-demo-incident', 'kuberik-demo-prod');
+  await deletePrometheusRule('kuberik-demo-incident', 'kuberik-demo-prod');
+  cb.log('Incident cleared — prod can now receive v2', 'success');
 
   return v2Tag;
 }

@@ -941,3 +941,46 @@ spec:
     type: After
 `;
 }
+
+export function incidentPrometheusRuleManifest(): string {
+  return `---
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: kuberik-demo-incident
+  namespace: kuberik-demo-prod
+  labels:
+    prometheus: kube-prometheus-stack
+    role: alert-rules
+spec:
+  groups:
+    - name: kuberik-demo-incident
+      interval: 5s
+      rules:
+        - alert: ProdIncident
+          expr: vector(1) > 0
+          labels:
+            severity: critical
+          annotations:
+            summary: "Active incident on prod"
+`;
+}
+
+export function incidentHealthCheckManifest(): string {
+  return `---
+apiVersion: kuberik.com/v1alpha1
+kind: HealthCheck
+metadata:
+  name: kuberik-demo-incident
+  namespace: kuberik-demo-prod
+  labels:
+    app: kuberik-demo-app
+  annotations:
+    healthcheck.kuberik.com/prometheus-url: "http://kube-prometheus-stack-prometheus.monitoring.svc.cluster.local:9090"
+    healthcheck.kuberik.com/prometheus-alert-labels: "alertname=ProdIncident"
+    healthcheck.kuberik.com/requeue-interval: "15s"
+    kuberik.com/display-name: "Active Incident"
+spec:
+  class: prometheus-alert
+`;
+}

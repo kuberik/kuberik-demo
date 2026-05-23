@@ -109,6 +109,29 @@ export async function waitForBakeSucceeded(ns: string = NS): Promise<void> {
   );
 }
 
+export async function waitForHealthCheckUnhealthyNs(name: string, ns: string): Promise<void> {
+  await poll(
+    async () => {
+      try {
+        const out = await exec(`kubectl get healthcheck ${name} -n ${ns} -o jsonpath='{.status.status}'`);
+        const s = out.replace(/'/g, '') || null;
+        return s === 'Unhealthy' ? true : null;
+      } catch {
+        return null;
+      }
+    },
+    { interval: 5000, timeout: 120000 },
+  );
+}
+
+export async function deleteHealthCheck(name: string, ns: string): Promise<void> {
+  await exec(`kubectl delete healthcheck ${name} -n ${ns} --ignore-not-found`);
+}
+
+export async function deletePrometheusRule(name: string, ns: string): Promise<void> {
+  await exec(`kubectl delete prometheusrule ${name} -n ${ns} --ignore-not-found`);
+}
+
 export async function setWantedVersion(tag: string): Promise<void> {
   await serverSideApplyYaml(`
 apiVersion: kuberik.com/v1alpha1
