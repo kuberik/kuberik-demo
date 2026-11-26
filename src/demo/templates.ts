@@ -310,9 +310,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: fluxcd/flux2/action@main
+      - uses: fluxcd/flux2/action@v2.10.1
         with:
-          version: latest
+          version: 2.10.1
 
       - name: Log in to GHCR
         uses: docker/login-action@v3
@@ -563,7 +563,7 @@ metadata:
   name: kuberik-demo-staging
 ---
 # Image repository — scans GHCR for new app image tags
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:
   name: kuberik-demo-app
@@ -574,7 +574,7 @@ spec:
   secretRef:
     name: github-registry-credentials
 ---
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
 metadata:
   name: kuberik-demo-app
@@ -722,7 +722,7 @@ kind: Namespace
 metadata:
   name: kuberik-demo-staging
 ---
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:
   name: kuberik-demo-app
@@ -733,7 +733,7 @@ spec:
   secretRef:
     name: github-registry-credentials
 ---
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
 metadata:
   name: kuberik-demo-app
@@ -836,7 +836,7 @@ kind: Namespace
 metadata:
   name: kuberik-demo-prod
 ---
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:
   name: kuberik-demo-app
@@ -847,7 +847,7 @@ spec:
   secretRef:
     name: github-registry-credentials
 ---
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
 metadata:
   name: kuberik-demo-app
